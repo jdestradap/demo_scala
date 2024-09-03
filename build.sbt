@@ -8,10 +8,10 @@ ThisBuild / organizationName := "example"
 lazy val akkaVersion = "2.7.0"
 lazy val alpakkaKafkaVersion = "4.0.2"
 
-
 lazy val root = (project in file("."))
   .settings(
     name := "demo",
+    Compile / mainClass := Some("example.KafkaStreamApp"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
