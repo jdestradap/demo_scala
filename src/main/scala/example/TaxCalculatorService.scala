@@ -7,8 +7,14 @@ trait TaxCalculatorService {
 
 object TaxCalculatorService {
   // Factory method for creating the default service
-  def default: TaxCalculatorService = new DefaultTaxCalculatorService
-
+  def calculateTotalAmount(order: Order): Either[String, Order] = {
+    TaxCalculatorService.getTaxRate(order) match {
+      case Some(taxRate) =>
+        val totalAmount = order.valueWithoutTaxes * (1 + taxRate.rate)
+        Right(order.withTotalAmount(totalAmount))
+      case None => Left("Unable to determine tax rate for the given order.")
+    }
+  }
   // Helper function to get tax rates (can be used internally or for other services)
   def getTaxRate(order: Order): Option[TaxRate] = {
     order.countryCode match {
@@ -27,16 +33,4 @@ object TaxCalculatorService {
     stateTaxRates.get(state)
   }
 }
-
-class DefaultTaxCalculatorService extends TaxCalculatorService {
-  override def calculateTotalAmount(order: Order): Either[String, Order] = {
-    TaxCalculatorService.getTaxRate(order) match {
-      case Some(taxRate) =>
-        val totalAmount = order.valueWithoutTaxes * (1 + taxRate.rate)
-        Right(order.withTotalAmount(totalAmount))
-      case None => Left("Unable to determine tax rate for the given order.")
-    }
-  }
-}
-
 case class TaxRate(rate: Double)
