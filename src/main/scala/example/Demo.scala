@@ -39,7 +39,9 @@ object Demo extends App {
   private val streamCompletion = kafkaSource
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
     .runWith(Sink.foreach {
-      case Right(order) => println(s"Deserialized Order: $order")
+      case Right(order) =>
+        TaxCalculatorService.default.calculateTotalAmount(order)
+        println(s"Deserialized Order: $order")
       case Left(error) => println(s"Failed to deserialize JSON: $error")
     })
 
