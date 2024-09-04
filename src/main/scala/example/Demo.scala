@@ -1,17 +1,16 @@
 package example
-
-import akka.actor.ActorSystem
-import akka.kafka.{ProducerSettings, ConsumerSettings, Subscriptions}
-import akka.kafka.scaladsl.{Producer, Consumer}
-import akka.stream.scaladsl.{Sink, Source}
-import akka.stream.{ActorMaterializer, Materializer, SystemMaterializer}
-import org.apache.kafka.clients.producer.ProducerConfig
+import akka.actor.{ActorSystem, CoordinatedShutdown}
+import akka.kafka.{ConsumerSettings, Subscriptions}
+import akka.kafka.scaladsl.Consumer
+import akka.stream.scaladsl.Sink
+import akka.stream.{Materializer, SystemMaterializer}
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.{StringSerializer, StringDeserializer}
-import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.serialization.StringDeserializer
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.util.Random
+import scala.concurrent.duration._
+import scala.concurrent.Await
+import scala.util.{Failure, Success}
 
 object Demo extends App {
   implicit val system: ActorSystem = ActorSystem("KafkaStreamSystem")
@@ -24,33 +23,25 @@ object Demo extends App {
     .withGroupId("akka-stream-kafka-group")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
-  // Kafka producer settings
-  val producerSettings: ProducerSettings[String, String] = ProducerSettings(system, new StringSerializer, new StringSerializer)
-    .withBootstrapServers("localhost:9092")
-    .withProperty(ProducerConfig.ACKS_CONFIG, "all")
-
-  // Source: Generate random messages
-  val kafkaProducerSource = Source(1 to 100)
-    .map { n =>
-      val key = s"key-$n"
-      val value = s"message-$n-${Random.alphanumeric.take(5).mkString}"
-      new ProducerRecord[String, String]("test-topic", key, value)
-    }
-
-  // Sink: Send messages to Kafka
-  kafkaProducerSource
-    .runWith(Producer.plainSink(producerSettings))
-    .onComplete(_ =>
-      println("Produced all messages"))
-
-  // Consumer: Read from Kafka topic
+  // Source: read from Kafka topic
   val kafkaSource = Consumer
-    .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
+    .plainSource(consumerSettings, Subscriptions.topics("test-topic-2"))
 
-  // Sink: Log the messages consumed
-  kafkaSource
+  // Sink: log the messages
+  val streamCompletion = kafkaSource
     .map(record => s"Consumed message: ${record.value}")
     .runWith(Sink.foreach(println))
-    .onComplete(_ =>
-      system.terminate())
+
+  // Handle stream completion or failure
+  streamCompletion.onComplete {
+    case Success(_) =>
+      println("Stream completed successfully.")
+      CoordinatedShutdown(system).run(CoordinatedShutdown.UnknownReason)
+    case Failure(e) =>
+      println(s"Stream failed with error: ${e.getMessage}")
+      CoordinatedShutdown(system).run(CoordinatedShutdown.UnknownReason)
+  }
+
+  // Block the main thread to keep the application running
+  Await.result(system.whenTerminated, Duration.Inf)
 }

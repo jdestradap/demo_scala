@@ -12,14 +12,19 @@ lazy val alpakkaKafkaVersion = "4.0.2"
 lazy val root = (project in file("."))
   .settings(
     name := "demo",
+    Compile / mainClass := Some("example.Demo"),
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion,
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-      "com.typesafe.akka" % "akka-stream-kafka_2.13" % "4.0.2",
+      "com.typesafe.akka" %% "akka-stream-kafka" % alpakkaKafkaVersion,
       "org.apache.kafka" % "kafka-clients" % "3.2.3",
       "ch.qos.logback" % "logback-classic" % "1.2.10",
       munit % Test
-    )
+    ),
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+      case x => MergeStrategy.first
+    }
   )
 
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.

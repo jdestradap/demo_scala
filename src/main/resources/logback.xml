@@ -6,8 +6,17 @@
         </encoder>
     </appender>
 
-    <!-- Define the root logger and associate it with the STDOUT appender -->
-    <root level="INFO">
+    <!-- Define an asynchronous appender -->
+    <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="STDOUT" />
+        <!-- Optional: Set the queue size (default is 256) -->
+        <queueSize>500</queueSize>
+        <!-- Optional: Define a max flush time in milliseconds (default is 1000ms) -->
+        <maxFlushTime>1000</maxFlushTime>
+    </appender>
+
+    <!-- Define the root logger and associate it with the ASYNC appender -->
+    <root level="INFO">
+        <appender-ref ref="ASYNC" />
     </root>
 </configuration>

@@ -4,6 +4,7 @@
 *.ipr
 *.iws
 .idea
+.java-version
 out
 .cache/
 .history/
