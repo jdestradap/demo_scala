@@ -13,6 +13,4 @@ COPY . .
 
 RUN /app/sbt/bin/sbt compile
 
-EXPOSE 9000
-
 CMD ["/app/sbt/bin/sbt", "run"]
