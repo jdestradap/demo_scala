@@ -22,14 +22,14 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-generic" % circeVersion,
       "io.circe" %% "circe-parser" % circeVersion,
       "org.apache.kafka" % "kafka-clients" % "3.2.3",
-      "ch.qos.logback" % "logback-classic" % "1.2.10",
+      "ch.qos.logback" % "logback-classic" % "1.5.7",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       munit % Test
     ),
-    assembly / assemblyMergeStrategy := {
-      case PathList("META-INF", xs*) => MergeStrategy.discard
-      case x => MergeStrategy.first
-    }
+      assembly / assemblyMergeStrategy := {
+        case PathList("META-INF", _*) => MergeStrategy.discard
+        case x => MergeStrategy.first
+      }
   )
 
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.
