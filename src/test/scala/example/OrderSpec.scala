@@ -3,29 +3,28 @@ package example
 import java.time.Instant
 import io.circe._
 import io.circe.parser._
-import io.circe.syntax._
 import org.scalatest.funsuite.AnyFunSuite
 import JsonCodecs._
 
 class OrderSpec extends AnyFunSuite {
 
-  test("should deserialize valid JSON into Order") {
+  test("should deserialize valid JSON into Order with optional fields present") {
     val jsonString = """
     {
       "orderId": "12345",
-      "date": "2024-09-04T12:34:56Z",
-      "storeId": "67890",
+      "valueWithoutTaxes": 199.99,
       "countryCode": "US",
-      "value": 199.99
+      "state": "CA",
+      "totalAmount": 219.99
     }
     """
 
     val expectedOrder = Order(
       orderId = "12345",
-      date = Instant.parse("2024-09-04T12:34:56Z"),
-      storeId = "67890",
+      valueWithoutTaxes = 199.99,
       countryCode = "US",
-      value = 199.99
+      state = Some("CA"),
+      totalAmount = Some(219.99)
     )
 
     val result = decode[Order](jsonString)
@@ -33,14 +32,34 @@ class OrderSpec extends AnyFunSuite {
     assert(result == Right(expectedOrder))
   }
 
-  test("should fail to deserialize invalid JSON") {
+  test("should deserialize valid JSON into Order with missing optional fields") {
+    val jsonString = """
+    {
+      "orderId": "12345",
+      "valueWithoutTaxes": 199.99,
+      "countryCode": "US"
+    }
+    """
+
+    val expectedOrder = Order(
+      orderId = "12345",
+      valueWithoutTaxes = 199.99,
+      countryCode = "US",
+      state = None,
+      totalAmount = None
+    )
+
+    val result = decode[Order](jsonString)
+
+    assert(result == Right(expectedOrder))
+  }
+
+  test("should fail to deserialize invalid JSON with wrong types") {
     val invalidJsonString = """
     {
       "orderId": "12345",
-      "date": "invalid-date-format",
-      "storeId": "67890",
-      "countryCode": "US",
-      "value": "not-a-number"
+      "valueWithoutTaxes": "not-a-number",
+      "countryCode": "US"
     }
     """
 
