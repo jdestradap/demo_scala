@@ -4,6 +4,7 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.Sink
 import akka.stream.{Materializer, SystemMaterializer}
+import io.circe.jawn.decode
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 
@@ -16,11 +17,14 @@ object Demo extends App {
   implicit val materializer: Materializer = SystemMaterializer(system).materializer
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
+  // Import the JsonCodecs to bring the implicit decoders into scope
+  import JsonCodecs._
+
   // Kafka consumer settings
-  private val bootstrapServers: String = if(System.getenv("KAFKA_BOOTSTRAP_SERVERS").isEmpty || System.getenv("KAFKA_BOOTSTRAP_SERVERS").isBlank)
-    "localhost:9092"
-  else
-    System.getenv("KAFKA_BOOTSTRAP_SERVERS")
+  private val bootstrapServers: String = Option(System.getenv("KAFKA_BOOTSTRAP_SERVERS")) match {
+    case Some(value) if value.trim.nonEmpty => value
+    case _ => "localhost:9092"
+  }
 
   private val consumerSettings: ConsumerSettings[String, String] = ConsumerSettings(system, new StringDeserializer, new StringDeserializer)
     .withBootstrapServers(bootstrapServers)
@@ -31,10 +35,15 @@ object Demo extends App {
   private val kafkaSource = Consumer
     .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
 
-  // Sink: log the messages
+  // Sink: deserialize and log the messages
   private val streamCompletion = kafkaSource
-    .map(record => s"Consumed message: ${record.value}")
-    .runWith(Sink.foreach(println))
+    .map(record => decode[Order](record.value))  // Deserialize JSON to Order
+    .runWith(Sink.foreach {
+      case Right(order) =>
+        TaxCalculatorService.calculateTotalAmount(order)
+        println(s"Deserialized Order: $order")
+      case Left(error) => println(s"Failed to deserialize JSON: $error")
+    })
 
   // Handle stream completion or failure
   streamCompletion.onComplete {
