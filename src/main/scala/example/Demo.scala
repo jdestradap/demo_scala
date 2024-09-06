@@ -31,11 +31,11 @@ object Demo extends App {
     .withGroupId("akka-stream-kafka-group-ok")
     .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true")
     .withProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "5000") // Commit every 5 seconds
-    .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
 
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
-    .plainSource(consumerSettings, Subscriptions.topics("test-topic-dos"))
+    .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
 
   private val streamCompletion = kafkaSource
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
