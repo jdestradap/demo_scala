@@ -25,11 +25,8 @@ lazy val root = (project in file("."))
       "ch.qos.logback" % "logback-classic" % "1.5.7",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       munit % Test
-    ),
-      assembly / assemblyMergeStrategy := {
-        case PathList("META-INF", _*) => MergeStrategy.discard
-        case x => MergeStrategy.first
-      }
+    )
+
   )
 
 // See https://www.scala-sbt.org/1.x/docs/Using-Sonatype.html for instructions on how to publish to Sonatype.
