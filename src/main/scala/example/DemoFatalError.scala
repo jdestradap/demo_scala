@@ -1,9 +1,10 @@
 package example
+
 import akka.actor.{ActorSystem, CoordinatedShutdown}
 import akka.kafka.scaladsl.Consumer
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.Sink
-import akka.stream.{Materializer, SystemMaterializer}
+import akka.stream.{ActorAttributes, Materializer, Supervision, SystemMaterializer}
 import io.circe.jawn.decode
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -12,7 +13,7 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-object Demo extends App {
+object DemoFatalError extends App {
   implicit val system: ActorSystem = ActorSystem("KafkaStreamSystem")
   implicit val materializer: Materializer = SystemMaterializer(system).materializer
   implicit val ec: ExecutionContextExecutor = system.dispatcher
@@ -31,6 +32,14 @@ object Demo extends App {
     .withGroupId("akka-stream-kafka-group")
     .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
 
+  // Define a supervision strategy that decides what to do on errors
+  val decider: Supervision.Decider = {
+    case ex: Exception =>
+      println(s"Supervision strategy triggered for exception: ${ex.getMessage}")
+      Supervision.Stop // Or use Supervision.Resume to skip problematic records
+    case _ => Supervision.Stop
+  }
+
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
     .plainSource(consumerSettings, Subscriptions.topics("test-topic-dos"))
@@ -39,8 +48,9 @@ object Demo extends App {
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
     .map {
       case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
-      case Left(error) => Left(s"Failed to deserialize JSON: $error")
+      case Left(error) => throw new RuntimeException(s"Failed to deserialize JSON: $error") // Fatal error raised
     }
+    .withAttributes(ActorAttributes.supervisionStrategy(decider)) // Apply the supervision strategy here
     .runWith(Sink.foreach {
       case Right(newOrder) =>
         println(s"Successfully processed order: $newOrder")
