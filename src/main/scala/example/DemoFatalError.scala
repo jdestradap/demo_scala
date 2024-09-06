@@ -36,17 +36,20 @@ object DemoFatalError extends App {
 
   // Define a supervision strategy that decides what to do on errors
   val decider: Supervision.Decider = {
-    case ex: Exception =>
+    case ex: RuntimeException =>
       println(s"Supervision strategy triggered for exception: ${ex.getMessage}")
       Supervision.Stop // Or use Supervision.Resume to skip problematic records
-    case _ => Supervision.Stop
+    case _ => Supervision.Resume
   }
 
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
     .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
 
-  private val streamCompletion = kafkaSource
+  // Add throttling for consumption (e.g., 10 elements per second)
+  private val throttledSource = kafkaSource.throttle(elements = 10, per = 1.second)
+
+  private val streamCompletion = throttledSource
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
     .map {
       case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
