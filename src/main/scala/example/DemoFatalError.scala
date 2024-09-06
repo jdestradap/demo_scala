@@ -44,7 +44,7 @@ object DemoFatalError extends App {
 
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
-    .plainSource(consumerSettings, Subscriptions.topics("test-topic-dos"))
+    .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
 
   private val streamCompletion = kafkaSource
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
