@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-scala
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-scala
+  template:
+    metadata:
+      labels:
+        app: demo-scala
+    spec:
+      containers:
+      - name: demo-scala
+        image: bernandez88/demo_scala
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka:9092"
+          # value: "172.17.0.2:9092"
