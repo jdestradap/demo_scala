@@ -58,7 +58,13 @@ object DemoFatalErrorManualCommit extends App {
           }
         case Left(error) =>
           println(s"Failed to deserialize JSON: $error")
-          Future.failed(new RuntimeException(s"Failed to deserialize JSON: $error"))
+          // Acknowledge the message (commit the offset) even if deserialization fails
+          Future.successful(msg.committableOffset).flatMap { offset =>
+            offset.commitScaladsl().flatMap { _ =>
+              // After committing the offset, fail the future
+              Future.failed(new RuntimeException(s"Failed to deserialize JSON: $error"))
+            }
+          }
       }
     }
 
@@ -68,6 +74,15 @@ object DemoFatalErrorManualCommit extends App {
     .via(processingFlow)
     .via(Committer.flow(committerSettings))
     .runWith(Sink.ignore)
+
+  streamCompletion.onComplete {
+    case Success(_) =>
+      println("Stream completed successfully.")
+      CoordinatedShutdown(system).run(CoordinatedShutdown.UnknownReason)
+    case Failure(e) =>
+      println(s"Stream failed with error: ${e.getMessage}")
+      CoordinatedShutdown(system).run(CoordinatedShutdown.UnknownReason)
+  }
 
   Await.result(system.whenTerminated, Duration.Inf)
 }
