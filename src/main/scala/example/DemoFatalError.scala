@@ -45,23 +45,9 @@ object DemoFatalError extends App {
 
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
-    .plainSource(consumerSettings, Subscriptions.topics("test-topic-cinco"))
+    .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
   //
   private val throttledSource = kafkaSource.throttle(elements = 100, per = 60.second)
-
-//  private val streamCompletion = throttledSource
-//    .map((record: ConsumerRecord[String, String]) => decode[Order](record.value))  // Deserialize JSON to Order
-//    .map {
-//      case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
-//      case Left(error) => throw new RuntimeException(s"Failed to deserialize JSON: $error ${record.value}" ) // Fatal error raised
-//    }
-//    .withAttributes(ActorAttributes.supervisionStrategy(decider)) // Apply the supervision strategy here
-//    .runWith(Sink.foreach {
-//      case Right(newOrder) =>
-//        println(s"Successfully processed order: $newOrder")
-//      case Left(error) =>
-//        println(s"Error processing order: $error")
-//    })
 
   private val streamCompletion = throttledSource
     .map(record => (record, decode[Order](record.value)))  // Capture both the record and deserialization result

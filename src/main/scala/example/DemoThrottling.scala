@@ -40,7 +40,7 @@ object DemoThrottling extends App {
     .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
 
   private val streamCompletion = kafkaSource
-    .throttle(10, 1.second, 10, ThrottleMode.Shaping) // Throttle to 10 messages per second
+    .throttle(elements = 100, per = 60.second) // Throttle to 10 messages per second
     .map(record => decode[Order](record.value))  // Deserialize JSON to Order
     .map {
       case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
