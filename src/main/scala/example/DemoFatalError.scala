@@ -5,8 +5,9 @@ import akka.kafka.scaladsl.Consumer
 import akka.kafka.{ConsumerSettings, Subscriptions}
 import akka.stream.scaladsl.Sink
 import akka.stream.{ActorAttributes, Materializer, Supervision, SystemMaterializer}
+import akka.util.Helpers.Requiring
 import io.circe.jawn.decode
-import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.common.serialization.StringDeserializer
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
@@ -44,16 +45,34 @@ object DemoFatalError extends App {
 
   // Source: read from Kafka topic
   private val kafkaSource = Consumer
-    .plainSource(consumerSettings, Subscriptions.topics("test-topic"))
+    .plainSource(consumerSettings, Subscriptions.topics("test-topic-cinco"))
+  //
+  private val throttledSource = kafkaSource.throttle(elements = 100, per = 60.second)
 
-  // Add throttling for consumption (e.g., 10 elements per second)
-  private val throttledSource = kafkaSource.throttle(elements = 10, per = 1.second)
+//  private val streamCompletion = throttledSource
+//    .map((record: ConsumerRecord[String, String]) => decode[Order](record.value))  // Deserialize JSON to Order
+//    .map {
+//      case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
+//      case Left(error) => throw new RuntimeException(s"Failed to deserialize JSON: $error ${record.value}" ) // Fatal error raised
+//    }
+//    .withAttributes(ActorAttributes.supervisionStrategy(decider)) // Apply the supervision strategy here
+//    .runWith(Sink.foreach {
+//      case Right(newOrder) =>
+//        println(s"Successfully processed order: $newOrder")
+//      case Left(error) =>
+//        println(s"Error processing order: $error")
+//    })
 
   private val streamCompletion = throttledSource
-    .map(record => decode[Order](record.value))  // Deserialize JSON to Order
+    .map(record => (record, decode[Order](record.value)))  // Capture both the record and deserialization result
     .map {
-      case Right(order) => TaxCalculatorService.calculateTotalAmount(order)
-      case Left(error) => throw new RuntimeException(s"Failed to deserialize JSON: $error") // Fatal error raised
+      case (_, Right(order)) =>
+        TaxCalculatorService.calculateTotalAmount(order) match {
+          case Right(newOrder) => Right(newOrder)
+          case Left(error) => Left(s"Error calculating total amount for order: $order, error: $error")
+        }
+      case (record, Left(error)) =>
+        throw new RuntimeException(s"Failed to deserialize JSON for record: ${record.value}, error: $error")  // Fatal error with detailed message
     }
     .withAttributes(ActorAttributes.supervisionStrategy(decider)) // Apply the supervision strategy here
     .runWith(Sink.foreach {
@@ -62,7 +81,6 @@ object DemoFatalError extends App {
       case Left(error) =>
         println(s"Error processing order: $error")
     })
-
   // Handle stream completion or failure
   streamCompletion.onComplete {
     case Success(_) =>
